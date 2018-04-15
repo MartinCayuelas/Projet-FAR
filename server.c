@@ -11,11 +11,27 @@
 #include <pthread.h>
 #include <string.h>
 
-#define PORT 10006
+#include "server.h"
+
+#define PORT 10034
 
 
 int nbMercenaire = 0;
 
+
+void modificationPosition(char *tokenOrientation, position *position){
+
+  if(strcmp(tokenOrientation,"up")==0){
+    position->y+=1;
+
+  }else if(strcmp(tokenOrientation,"down")==0){
+    position->y-=1;
+  }else if(strcmp(tokenOrientation,"left")==0){
+    position->x-=1;
+  }else if(strcmp(tokenOrientation,"right")==0){
+      position->x+=1;
+  }
+}
 
 
 void* clientFils(void *monThreadClient) {
@@ -23,6 +39,12 @@ void* clientFils(void *monThreadClient) {
   int csock = *(int*)monThreadClient;
 
 
+  int mesPositions[2];
+
+  struct position position;
+
+  position.x=0;
+  position.y=0;
 
   //----------Partie Debut----------------//
   char bufferC[32] = "Bonjour!";
@@ -99,12 +121,40 @@ void* clientFils(void *monThreadClient) {
       if(strcmp(tokenId,"8")==0){
       }
       else{
-
         tokenId= strtok(NULL,"");
         char *tokenAction = strtok(tokenId,"/");
         printf("%s\n",tokenAction );
 
         if(strcmp(tokenAction,"deplacer")==0){
+            tokenId= strtok(NULL,"");
+          char *tokenOrientation = strtok(tokenId,"/");
+          printf("%s\n",tokenOrientation );
+            if(strcmp(tokenOrientation,"up")==0){
+              printf("up\n");
+            }else if(strcmp(tokenOrientation,"down")==0){
+              printf("down\n");
+            }else if(strcmp(tokenOrientation,"left")==0){
+              printf("left\n");
+            }else if(strcmp(tokenOrientation,"right")==0){
+              printf("right\n");
+            }
+            else{ //probleme de requete
+              char badRequest[64]= "Mauvaise forme de requete de déplacement!\n";
+              printf("%s\n", badRequest);
+              send(csock, badRequest,64,0);
+            }
+
+            printf("old x: %d\n",position.x);
+            printf("old y: %d\n",position.y);
+            modificationPosition(tokenOrientation,&position);
+            printf("new x: %d\n",position.x);
+            printf("new y: %d\n",position.y);
+
+
+            if( send(csock, &position, sizeof(position),0) < 0 ) {
+                printf("send failed!\n");
+            }
+
             //TO DO
         }else if(strcmp(tokenAction,"attraper")==0 && (strcmp(id,"7")!=0)){
           //TO DO
@@ -113,6 +163,7 @@ void* clientFils(void *monThreadClient) {
           //TO DO
         }
       }
+
 
 
 

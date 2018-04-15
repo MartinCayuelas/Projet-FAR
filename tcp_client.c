@@ -9,7 +9,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#define PORT 10006
+#include "server.h"
+#define PORT 10034
 
 int sock;
 
@@ -56,7 +57,25 @@ int main(void) {
   recv(sock, buffer, 32, 0);
   printf("Recu ID : %s\n", buffer);
 
-  
+  struct position mesPositions;
+  mesPositions.x = 1;
+  mesPositions.y = 1;
+  while(1){
+      printf("Votre requete? : ");
+      fgets(buffer, 64, stdin);
+      char *pos2 = strchr(buffer, '\n');
+      *pos2 = '\0';
+      send(sock, buffer, 64, 0);
+
+      if(recv(sock,&mesPositions.x,sizeof(mesPositions.x),0) < 0){
+        printf("Failed recv\n");
+      }
+      if(recv(sock,&mesPositions.y,sizeof(mesPositions.y),0) < 0){
+        printf("Failed recv\n");
+      }
+      printf("x: %d\n",mesPositions.x);
+      printf("y: %d\n",mesPositions.y);
+    }
 
   return EXIT_SUCCESS;
 
