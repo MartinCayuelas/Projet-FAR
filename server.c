@@ -13,24 +13,30 @@
 
 #include "server.h"
 
-#define PORT 10034
+#define PORT 10038
+#define PORTMAP 11114
 
 
 int nbMercenaire = 0;
 
 
-void modificationPosition(char *tokenOrientation, position *position){
+int *modificationPosition(char *tokenOrientation, int x, int y){
 
+  printf("x modif AVnt: %d\n",x );
+  printf("y modif Ava,t: %d\n",y );
+static int tab[2];
   if(strcmp(tokenOrientation,"up")==0){
-    position->y+=1;
+      tab[1] = y +1;
 
   }else if(strcmp(tokenOrientation,"down")==0){
-    position->y-=1;
+  tab[1] = y - 1;
   }else if(strcmp(tokenOrientation,"left")==0){
-    position->x-=1;
+    tab[0] = y -1;
   }else if(strcmp(tokenOrientation,"right")==0){
-      position->x+=1;
+      tab[0] = y +1;
   }
+
+  return tab;
 }
 
 
@@ -41,10 +47,10 @@ void* clientFils(void *monThreadClient) {
 
   int mesPositions[2];
 
-  struct position position;
+  struct position positionE;
 
-  position.x=0;
-  position.y=0;
+  positionE.x=0;
+  positionE.y=0;
 
   //----------Partie Debut----------------//
   char bufferC[32] = "Bonjour!";
@@ -127,8 +133,8 @@ void* clientFils(void *monThreadClient) {
 
         if(strcmp(tokenAction,"deplacer")==0){
             tokenId= strtok(NULL,"");
-          char *tokenOrientation = strtok(tokenId,"/");
-          printf("%s\n",tokenOrientation );
+            char *tokenOrientation = strtok(tokenId,"/");
+            printf("%s\n",tokenOrientation );
             if(strcmp(tokenOrientation,"up")==0){
               printf("up\n");
             }else if(strcmp(tokenOrientation,"down")==0){
@@ -144,14 +150,26 @@ void* clientFils(void *monThreadClient) {
               send(csock, badRequest,64,0);
             }
 
-            printf("old x: %d\n",position.x);
-            printf("old y: %d\n",position.y);
-            modificationPosition(tokenOrientation,&position);
-            printf("new x: %d\n",position.x);
-            printf("new y: %d\n",position.y);
+            printf("old x: %d\n",positionE.x);
+            printf("old y: %d\n",positionE.y);
+            int *tab;
+
+            printf("Je suis là\n");
+            tab = modificationPosition(tokenOrientation,positionE.x, positionE.y);
+printf("Je suis là2\n");
+printf("tab[0] %d\n", tab[0]);
+            positionE.x = tab[0];
+            printf("Je suis là3\n");
+            positionE.y = tab[1];
+            printf("Je suis là4\n");
+            printf("new x: %d\n",positionE.x);
+            printf("new y: %d\n",positionE.y);
 
 
-            if( send(csock, &position, sizeof(position),0) < 0 ) {
+
+
+            //Probleme à la reception
+            if( send(csock, (void*)&positionE, sizeof(positionE),0) < 0 ) {
                 printf("send failed!\n");
             }
 
@@ -206,6 +224,60 @@ printf("Initialisation du serveur\n");
 
   /* Démarrage du listage */
   listen(serverSocket, 15);
+
+  /****Connexion au serveur de Map ***************/
+
+  struct sockaddr_in mapsin;
+  int mapSocket;
+  socklen_t maprecsize = sizeof(mapsin);
+
+  /* Création de la socket */
+  mapSocket = socket(AF_INET, SOCK_STREAM, 0);
+
+  /* Configuration de la connexion */
+  mapsin.sin_addr.s_addr = inet_addr("127.0.0.1");
+  mapsin.sin_family = AF_INET;
+  mapsin.sin_port = htons(PORTMAP);
+
+  /* Tentative de connexion au serveur */
+  connect(mapSocket, (struct sockaddr*)&mapsin, sizeof(mapsin));
+  printf("Connexion a %s sur le port %d\n", inet_ntoa(mapsin.sin_addr),
+         htons(mapsin.sin_port));
+
+         /* Réception de données du serveur */
+  char buffer[32] = "";
+  recv(mapSocket, buffer, 32, 0);
+  printf("Recu : %s\n", buffer);
+
+
+  struct map laMap;
+  if(recv(mapSocket,(void*)&laMap, sizeof(laMap),0)<0){
+    printf("Probleme reception\n");
+  }
+  int j,i;
+  for(i = 0; i < laMap.tailleCarte; ++i)
+{
+   for(j = 0; j < laMap.tailleCarte ; ++j)
+   {
+        //laMap.matrice[i][j]=0;
+      printf("%d\t",  laMap.matrice[i][j]);
+   }
+printf("\n");
+}
+
+struct objectPosition objet;
+if(recv(mapSocket,(void*)&objet, sizeof(objet),0)<0){
+  printf("Probleme reception\n");
+}
+
+printf("Mercenaire 3 x: %d\n",objet.mercenaire[2].x );
+printf("Mercenaire 3 y: %d\n",objet.mercenaire[2].y );
+printf("Nb nbVillageois: %d\n",objet.nbVillageois );
+
+
+
+  /*************************PARTIE DE JEU*****************************/
+
 
   while (1) {
     /* Attente d'une connexion client */
