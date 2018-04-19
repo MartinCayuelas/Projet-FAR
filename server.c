@@ -13,68 +13,164 @@
 
 #include "server.h"
 
-#define PORT 10038
-#define PORTMAP 11114
+#include <signal.h>
 
 
+#include <time.h>  //pour le Random
+#define PORT 10045
+
+#define PORTMAP 12045
+
+/* VAriables globales pour les fonctions */
 int nbMercenaire = 0;
 
+struct map mapJeu; // Pour la Map
 
-int *modificationPosition(char *tokenOrientation, int x, int y){
+/***********************************************/
+int rand_a_b(int a, int b) { //Fonction de Random
+  b += 1;
+  return rand() % (b - a) + a;
 
-  printf("x modif AVnt: %d\n",x );
-  printf("y modif Ava,t: %d\n",y );
-static int tab[2];
-  if(strcmp(tokenOrientation,"up")==0){
-      tab[1] = y +1;
-
-  }else if(strcmp(tokenOrientation,"down")==0){
-  tab[1] = y - 1;
-  }else if(strcmp(tokenOrientation,"left")==0){
-    tab[0] = y -1;
-  }else if(strcmp(tokenOrientation,"right")==0){
-      tab[0] = y +1;
-  }
-
-  return tab;
 }
 
+void placementVillageois(){
+  int i;
+  for (i = 0; i < mapJeu.positions.nbVillageois; i++) {
+    int pose = 0;
+    while (pose == 0) {
+      int positionX = rand_a_b(0, mapJeu.tailleCarte);
+      int positionY = rand_a_b(0, mapJeu.tailleCarte);
+      if (mapJeu.matrice[positionX][positionY] == 10) {
+        mapJeu.matrice[positionX][positionY] = 9;
+        pose = 1;
+      }
+    }
+  }
+}
 
-void* clientFils(void *monThreadClient) {
+void placementMOT(){
+  int j;
+  for(j = 0; j < 6; j++){ //Mercenaire
+      int positionX = mapJeu.positions.mercenaire[j].x;
+      int positionY = mapJeu.positions.mercenaire[j].y;
+      printf("Mercenaire %d X : %d Y : %d\n",j+1,positionX,positionY);
+      mapJeu.matrice[positionX][positionY] = j+1;
+    }
 
-  int csock = *(int*)monThreadClient;
+  mapJeu.matrice[mapJeu.positions.thebes.x][mapJeu.positions.thebes.x] = 33;
+  mapJeu.matrice[mapJeu.positions.oedipe.x][mapJeu.positions.oedipe.x] = 7;
+  mapJeu.matrice[mapJeu.tailleCarte-1][mapJeu.tailleCarte-1] = 8;
+}
 
+void resetPlacement(int x, int y){
+    mapJeu.matrice[x][y] = 10;
+}
 
-  int mesPositions[2];
+void afficheMap(){
+    int i,j;
+    for(i = 0; i < mapJeu.tailleCarte; ++i){
+     for(j = 0; j < mapJeu.tailleCarte ; ++j){
+        printf("%d\t",mapJeu.matrice[i][j]);
+     }
+     printf("\n");
+   }
+  }
+int verifMur(int x, int y){
+  int mur = 0;
+  if(mapJeu.matrice[x][y]==0){
+    mur = 1;
+  }
 
-  struct position positionE;
+  return mur;
+}
+void modificationPosition(char * tokenOrientation,char * id) {
+    int idT = atoi(id);
+    int oldX;
+    int oldY;
+    int mur;
 
-  positionE.x=0;
-  positionE.y=0;
+    if(idT != 7){
+
+      oldX = mapJeu.positions.mercenaire[idT-1].x;
+      oldY = mapJeu.positions.mercenaire[idT-1].y;
+
+    if (strcmp(tokenOrientation, "up") == 0) {
+
+      mapJeu.positions.mercenaire[idT-1].y += 1;
+       mur = verifMur(mapJeu.positions.mercenaire[idT-1].x, mapJeu.positions.mercenaire[idT-1].y);
+    } else if (strcmp(tokenOrientation, "down") == 0) {
+    mapJeu.positions.mercenaire[idT-1].y -= 1;
+    mur = verifMur(mapJeu.positions.mercenaire[idT-1].x, mapJeu.positions.mercenaire[idT-1].y);
+    } else if (strcmp(tokenOrientation, "left") == 0) {
+      mapJeu.positions.mercenaire[idT-1].x -= 1;
+      mur = verifMur(mapJeu.positions.mercenaire[idT-1].x, mapJeu.positions.mercenaire[idT-1].y);
+    } else if (strcmp(tokenOrientation, "right") == 0) {
+    mapJeu.positions.mercenaire[idT-1].x += 1;
+    mur = verifMur(mapJeu.positions.mercenaire[idT-1].x, mapJeu.positions.mercenaire[idT-1].y);
+    }
+  }else{
+     oldX = mapJeu.positions.oedipe.x;
+     oldY = mapJeu.positions.oedipe.y;
+    if (strcmp(tokenOrientation, "up") == 0) {
+      mapJeu.positions.oedipe.y += 1;
+      printf("Y Oedipe : %d\n", mapJeu.positions.oedipe.y );
+      placementMOT();
+      mur = verifMur( mapJeu.positions.oedipe.x,mapJeu.positions.oedipe.y);
+
+    } else if (strcmp(tokenOrientation, "down") == 0) {
+    mapJeu.positions.oedipe.y -= 1;
+      mur = verifMur(  mapJeu.positions.oedipe.x,mapJeu.positions.oedipe.y);
+    } else if (strcmp(tokenOrientation, "left") == 0) {
+      mapJeu.positions.oedipe.x -= 1;
+        mur = verifMur(  mapJeu.positions.oedipe.x,mapJeu.positions.oedipe.y);
+    } else if (strcmp(tokenOrientation, "right") == 0) {
+      mapJeu.positions.oedipe.x += 1;
+        mur = verifMur(  mapJeu.positions.oedipe.x,mapJeu.positions.oedipe.y);
+    }
+  }
+
+    if(mur == 0){
+      resetPlacement(oldX,oldY); // On enleve la position ancienne
+      placementMOT();
+    }else{
+        if(idT == 7){
+            mapJeu.positions.oedipe.x = oldX;
+            mapJeu.positions.oedipe.y = oldY;
+
+        }else{
+            mapJeu.positions.mercenaire[idT-1].x = oldX;
+            mapJeu.positions.mercenaire[idT-1].y = oldY;
+        }
+        placementMOT();
+    }
+}
+
+void * clientFils(void * monThreadClient) {
+
+  int csock = * (int *) monThreadClient;
+
 
   //----------Partie Debut----------------//
   char bufferC[32] = "Bonjour!";
-  send(csock, bufferC,32,0);
-
-
+  send(csock, bufferC, 32, 0);
 
   //----------Partie Connexion----------------//
   char bufferConnexion[128];
-  recv(csock, bufferConnexion,128,0);
-    printf("%s\n", bufferConnexion);
+  recv(csock, bufferConnexion, 128, 0);
+  printf("%s\n", bufferConnexion);
 
   //Savoir quel type se connecte
-  char *tokenConnexion = strtok(bufferConnexion,"/");
-  printf("%s\n",tokenConnexion);
-  if(strcmp(tokenConnexion,"connexion")==0){
+  char * tokenConnexion = strtok(bufferConnexion, "/");
+  printf("%s\n", tokenConnexion);
+  if (strcmp(tokenConnexion, "connexion") == 0) {
     printf("Demande de connexion Possible\n");
 
-    tokenConnexion = strtok(NULL,"");
-    char *tokenType = strtok(tokenConnexion,"/");
+    tokenConnexion = strtok(NULL, "");
+    char * tokenType = strtok(tokenConnexion, "/");
 
-  printf("%s\n",tokenType);
+    printf("%s\n", tokenType);
 
-    if (strcmp(tokenConnexion,"mercenaire")==0) {
+    if (strcmp(tokenConnexion, "mercenaire") == 0) {
       nbMercenaire = nbMercenaire + 1; // On incrémente le nombre de Mercenaire
 
       char idType[1];
@@ -82,124 +178,102 @@ void* clientFils(void *monThreadClient) {
 
       printf("Id: %s\n", idType);
 
-      send(csock,idType,sizeof(idType),0);
+      send(csock, idType, sizeof(idType), 0);
 
       /* code */
-    }else if (strcmp(tokenConnexion,"oedipe")==0) {
+    } else if (strcmp(tokenConnexion, "oedipe") == 0) {
       //TO DO
-      char* idType ="7";
+      char * idType = "7";
 
-        printf("Id: %s\n", idType);
-      send(csock,idType,sizeof(idType),0);
+      printf("Id: %s\n", idType);
+      send(csock, idType, sizeof(idType), 0);
       /* code */
-    }else if (strcmp(tokenConnexion,"sphynx")==0) {
+    } else if (strcmp(tokenConnexion, "sphynx") == 0) {
       //TO DO
-        char* idType ="8";
-          printf("Id: %s\n", idType);
-      send(csock,idType,sizeof(idType),0);
+      char * idType = "8";
+      printf("Id: %s\n", idType);
+      send(csock, idType, sizeof(idType), 0);
       /* code */
     }
 
-
-  }else{
-    char badRequest[64]= "Mauvaise forme de requete de connexion!\n";
+  } else {
+    char badRequest[64] = "Mauvaise forme de requete de connexion!\n";
     printf("%s\n", badRequest);
-    send(csock, badRequest,64,0);
+    send(csock, badRequest, 64, 0);
   }
-
-
-
 
   //--------------Partie Traitement------------//
-  char bufferAccueil[64]="\nBonjour! et Bienvenue\n";
-  send(csock,bufferAccueil,64,0);
+  char bufferAccueil[32] = "\nBonjour! et Bienvenue\n";
+  send(csock, bufferAccueil, 32, 0);
 
-  char action[64]="";
-  while(recv(csock,action,64,0) > 0){
-      printf("%s\n",action);
-
-      //Recuperer l'action
-      char *tokenId = strtok(action,"/");
-      printf("%s\n",tokenId);
-      char id[1];
-      strcpy(id,tokenId);
-
-      if(strcmp(tokenId,"8")==0){
-      }
-      else{
-        tokenId= strtok(NULL,"");
-        char *tokenAction = strtok(tokenId,"/");
-        printf("%s\n",tokenAction );
-
-        if(strcmp(tokenAction,"deplacer")==0){
-            tokenId= strtok(NULL,"");
-            char *tokenOrientation = strtok(tokenId,"/");
-            printf("%s\n",tokenOrientation );
-            if(strcmp(tokenOrientation,"up")==0){
-              printf("up\n");
-            }else if(strcmp(tokenOrientation,"down")==0){
-              printf("down\n");
-            }else if(strcmp(tokenOrientation,"left")==0){
-              printf("left\n");
-            }else if(strcmp(tokenOrientation,"right")==0){
-              printf("right\n");
-            }
-            else{ //probleme de requete
-              char badRequest[64]= "Mauvaise forme de requete de déplacement!\n";
-              printf("%s\n", badRequest);
-              send(csock, badRequest,64,0);
-            }
-
-            printf("old x: %d\n",positionE.x);
-            printf("old y: %d\n",positionE.y);
-            int *tab;
-
-            printf("Je suis là\n");
-            tab = modificationPosition(tokenOrientation,positionE.x, positionE.y);
-printf("Je suis là2\n");
-printf("tab[0] %d\n", tab[0]);
-            positionE.x = tab[0];
-            printf("Je suis là3\n");
-            positionE.y = tab[1];
-            printf("Je suis là4\n");
-            printf("new x: %d\n",positionE.x);
-            printf("new y: %d\n",positionE.y);
-
-
-
-
-            //Probleme à la reception
-            if( send(csock, (void*)&positionE, sizeof(positionE),0) < 0 ) {
-                printf("send failed!\n");
-            }
-
-            //TO DO
-        }else if(strcmp(tokenAction,"attraper")==0 && (strcmp(id,"7")!=0)){
-          //TO DO
-        }
-        else if(strcmp(tokenAction,"attaquer")==0 && (strcmp(id,"7")==0)){
-          //TO DO
-        }
-      }
-
-
-
-
+  /********** ENvoi de la Map*************/
+  /*
+  int socketMap = csock;
+  if (send(socketMap, (void *)&mapJeu, sizeof(mapJeu), 0) < 0) {
+    printf("Probleme envoi MAP\n");
+  } else {
+    printf("Envoyé MAP au client\n");
   }
 
+  close(socketMap);*/
+/*****************************************************/
+  char action[32] = "";
+  while (recv(csock, action, 32, 0) > 0) {
+    printf("%s\n", action);
 
+    //Recuperer l'action
+    char * tokenId = strtok(action, "/");
+    printf("%s\n", tokenId);
+    char id[1];
+    strcpy(id, tokenId);
 
+    if (strcmp(tokenId, "8") == 0) {} else {
+      tokenId = strtok(NULL, "");
+      char * tokenAction = strtok(tokenId, "/");
+      printf("%s\n", tokenAction);
 
+      if (strcmp(tokenAction, "deplacer") == 0) {
+        tokenId = strtok(NULL, "");
+        char * tokenOrientation = strtok(tokenId, "/");
+        printf("%s\n", tokenOrientation);
+        if (strcmp(tokenOrientation, "up") == 0) {
+          printf("up\n");
+        } else if (strcmp(tokenOrientation,"down") == 0) {
+          printf("down\n");
+        } else if (strcmp(tokenOrientation,"left") == 0) {
+          printf("left\n");
+        } else if (strcmp(tokenOrientation,"right") == 0) {
+          printf("right\n");
+        } else { //probleme de requete
+          char badRequest[64] = "Mauvaise forme de requete de déplacement!\n";
+          printf("%s\n", badRequest);
+          send(csock, badRequest, 64, 0);
+        }
+
+        modificationPosition(tokenOrientation,id); //
+
+        afficheMap();
+        /*
+        if (send(csock, (struct position*)&position, sizeof(position), 0) < 0) {
+          printf("send failed!\n");
+        }*/
+        //TO DO
+      } else if (strcmp(tokenAction, "attraper") == 0 && (strcmp(id, "7") != 0)) {
+        //TO DO
+      } else if (strcmp(tokenAction, "attaquer") == 0 && (strcmp(id, "7") == 0)) {
+        //TO DO
+      }
+    }
+
+  }
 
   pthread_exit(0);
   close(csock);
 
-
-
 }
 
 int main(void) {
-printf("Initialisation du serveur\n");
+  printf("Initialisation du serveur\n");
 
   pthread_t thread;
 
@@ -217,22 +291,19 @@ printf("Initialisation du serveur\n");
   serverSocket = socket(AF_INET, SOCK_STREAM, 0);
 
   /* Configuration */
-  sin.sin_addr.s_addr = htonl(INADDR_ANY);  /* Adresse IP automatique */
-  sin.sin_family = AF_INET;                 /* Protocole familial (IP) */
-  sin.sin_port = htons(PORT);               /* Listage du port */
-  bind(serverSocket, (struct sockaddr*)&sin, recsize);
+  sin.sin_addr.s_addr = htonl(INADDR_ANY); /* Adresse IP automatique */
+  sin.sin_family = AF_INET; /* Protocole familial (IP) */
+  sin.sin_port = htons(PORT); /* Listage du port */
+  bind(serverSocket, (struct sockaddr * ) & sin, recsize);
 
   /* Démarrage du listage */
   listen(serverSocket, 15);
-
-  /****Connexion au serveur de Map ***************/
-
+  int sockMap;
   struct sockaddr_in mapsin;
-  int mapSocket;
-  socklen_t maprecsize = sizeof(mapsin);
 
+  /************PARTIE MAP********************/
   /* Création de la socket */
-  mapSocket = socket(AF_INET, SOCK_STREAM, 0);
+  sockMap = socket(AF_INET, SOCK_STREAM, 0);
 
   /* Configuration de la connexion */
   mapsin.sin_addr.s_addr = inet_addr("127.0.0.1");
@@ -240,51 +311,41 @@ printf("Initialisation du serveur\n");
   mapsin.sin_port = htons(PORTMAP);
 
   /* Tentative de connexion au serveur */
-  connect(mapSocket, (struct sockaddr*)&mapsin, sizeof(mapsin));
+  connect(sockMap, (struct sockaddr * )&mapsin, sizeof(mapsin));
   printf("Connexion a %s sur le port %d\n", inet_ntoa(mapsin.sin_addr),
-         htons(mapsin.sin_port));
+    htons(mapsin.sin_port));
 
-         /* Réception de données du serveur */
-  char buffer[32] = "";
-  recv(mapSocket, buffer, 32, 0);
-  printf("Recu : %s\n", buffer);
+  int i, j;
+  if (recv(sockMap, (void * ) & mapJeu, sizeof(mapJeu), 0) < 0) {
+    printf("Probleme Reception MAp\n");
+  } else {
+
+    printf("Coucou j'ai reçu la map\n");
+    afficheMap();
 
 
-  struct map laMap;
-  if(recv(mapSocket,(void*)&laMap, sizeof(laMap),0)<0){
-    printf("Probleme reception\n");
+    printf("Nb nbVillageois: %d\n", mapJeu.positions.nbVillageois);
+
+    placementMOT();
+    placementVillageois();
+    afficheMap();
   }
-  int j,i;
-  for(i = 0; i < laMap.tailleCarte; ++i)
-{
-   for(j = 0; j < laMap.tailleCarte ; ++j)
-   {
-        //laMap.matrice[i][j]=0;
-      printf("%d\t",  laMap.matrice[i][j]);
-   }
-printf("\n");
-}
 
-struct objectPosition objet;
-if(recv(mapSocket,(void*)&objet, sizeof(objet),0)<0){
-  printf("Probleme reception\n");
-}
+  if (send(sockMap, (void * ) & mapJeu, sizeof(mapJeu), 0) < 0) {
+    printf("Probleme envoi MAP\n");
+  } else {
+    printf("Envoyé MAP\n");
+  }
 
-printf("Mercenaire 3 x: %d\n",objet.mercenaire[2].x );
-printf("Mercenaire 3 y: %d\n",objet.mercenaire[2].y );
-printf("Nb nbVillageois: %d\n",objet.nbVillageois );
+  close(sockMap);
 
-
-
-  /*************************PARTIE DE JEU*****************************/
-
-
+  /********************************************************/
   while (1) {
     /* Attente d'une connexion client */
 
-    clientSocket = accept(serverSocket,(struct sockaddr*)&csin, &crecsize);
+    clientSocket = accept(serverSocket, (struct sockaddr * ) & csin, & crecsize);
     printf("Un client est connecté avec la socket %d de %s:%d\n", clientSocket, inet_ntoa(csin.sin_addr), htons(csin.sin_port));
-    pthread_create(&thread, NULL, clientFils, (void *)&clientSocket);
+    pthread_create( & thread, NULL, clientFils, (void * ) & clientSocket);
     pthread_detach(thread);
 
   }

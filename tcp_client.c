@@ -10,10 +10,24 @@
 #include <stdlib.h>
 #include <string.h>
 #include "server.h"
-#define PORT 10038
+#define PORT 10045
 
 int sock;
+struct map mapJeu;
+struct position mesPositions;
 
+void afficheMap(){
+  printf("Je suis dans afficheMap\n");
+  int i,j;
+
+  printf("Taille Carte %d\n",mapJeu.tailleCarte);
+  for(i = 0; i < mapJeu.tailleCarte; i++){
+   for(j = 0; j < mapJeu.tailleCarte ; j++){
+      printf("%d\t",mapJeu.matrice[i][j]);
+   }
+   printf("\n");
+ }
+}
 void close_exit (int n) {
   /* Fermeture de la socket client */
   shutdown(sock, 2);
@@ -57,21 +71,27 @@ int main(void) {
   recv(sock, buffer, 32, 0);
   printf("Recu ID : %s\n", buffer);
 
-  struct position mesPositions;
+  /*
+  int socketMap = sock;
+
+  if (recv(socketMap,(void *)&mapJeu, sizeof(mapJeu), 0) < 0) {
+    printf("Probleme reception MAP\n");
+  } else {
+    printf("Reception MAP\n");
+
+    afficheMap();
+  }
+  close(socketMap);
+*/
 
   while(1){
       printf("Votre requete? : ");
-      fgets(buffer, 64, stdin);
+      fgets(buffer, 32, stdin);
       char *pos2 = strchr(buffer, '\n');
       *pos2 = '\0';
-      send(sock, buffer, 64, 0);
+      send(sock, buffer, 32, 0);
 
-      if(recv(sock,(void*)&mesPositions,sizeof(mesPositions),0) < 0){
-        printf("Failed recv\n");
-      }
 
-      printf("x: %d\n",mesPositions.x);
-      printf("y: %d\n",mesPositions.y);
     }
 
   return EXIT_SUCCESS;

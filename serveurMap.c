@@ -13,7 +13,7 @@
 
 #include "server.h"
 
-#define PORT 11114
+#define PORT 12045
 
 int main(void) {
 printf("Initialisation du serveur MAP\n");
@@ -45,9 +45,6 @@ printf("Initialisation du serveur MAP\n");
   clientSocket = accept(serverSocket,(struct sockaddr*)&csin, &crecsize);
   printf("Le serveur de JEU est connecté avec la socket %d de %s:%d\n", clientSocket, inet_ntoa(csin.sin_addr), htons(csin.sin_port));
 
-  char bufferC[32] = "Bonjour!";
-  send(clientSocket,bufferC,32,0);
-
   struct objectPosition objet;
   struct map laMap;
 
@@ -58,11 +55,22 @@ printf("Initialisation du serveur MAP\n");
 {
    for(j = 0; j < laMap.tailleCarte ; ++j)
    {
-        laMap.matrice[i][j]=3;
+        laMap.matrice[i][j]=10;
       printf("%d\t",  laMap.matrice[i][j]);
    }
 printf("\n");
 }
+
+
+laMap.matrice[1][1]= 0;
+laMap.matrice[2][1]= 0;
+laMap.matrice[3][1]= 0;
+
+laMap.matrice[6][6]= 0;
+laMap.matrice[6][7]= 0;
+
+laMap.matrice[8][8]= 0;
+
 struct position oedipe;
 struct position mercenaire1;
 struct position mercenaire2;
@@ -78,7 +86,7 @@ thebe.y = 8;
 oedipe.x = 1;
 oedipe.y = 1;
 objet.nbVillageois = 8;
-objet.oedipe[0] = oedipe;
+objet.oedipe = oedipe;
 
 mercenaire1.x = 2;
 mercenaire1.y = 2;
@@ -94,7 +102,6 @@ mercenaire6.x = 7;
 mercenaire6.y = 7;
 
 
-mercenaire3.x+=4;
 
 objet.mercenaire[0] = mercenaire1;
 objet.mercenaire[1] = mercenaire2;
@@ -102,19 +109,36 @@ objet.mercenaire[2] = mercenaire3;
 objet.mercenaire[3] = mercenaire4;
 objet.mercenaire[4] = mercenaire5;
 objet.mercenaire[5] = mercenaire6;
-objet.thebes[0] = thebe;
+objet.thebes = thebe;
+
+laMap.positions = objet;
 
 
   if(send(clientSocket,(void*)&laMap,sizeof(laMap),0) < 0 ){
-    printf("Probleme envoi\n");
+    printf("Probleme envoi MAP\n");
+  }else{
+    printf("Envoyé MAP\n");
   }
 
-  if(send(clientSocket,(void*)&objet,sizeof(objet),0) < 0 ){
-    printf("Probleme envoi\n");
+
+// TEST de carte ************************
+printf("CARTE RETOUR Avec placement villageois + Mercenaire + Oedipe + sphynx\n");
+  if(recv(clientSocket,(struct map*)&laMap,sizeof(laMap),0) < 0 ){
+    printf("Probleme reception\n");
+  }else{
+    for(i = 0; i < laMap.tailleCarte; ++i)
+  {
+     for(j = 0; j < laMap.tailleCarte ; ++j)
+     {
+
+        printf("%d\t",  laMap.matrice[i][j]);
+     }
+  printf("\n");
   }
 
-
-
+}
+close(clientSocket);
+close(serverSocket);
 
 
 
