@@ -10,13 +10,25 @@
 #include <stdlib.h>
 #include <string.h>
 #include "server.h"
-#define PORT 10045
+#define PORT 10059
 
 int sock;
 struct map mapJeu;
 struct position mesPositions;
+struct Mercenaire mercenaire;
 
-void afficheMap(){
+void afficheMercenaire(Mercenaire mercenaire){
+  printf("Id: %d\n", mercenaire.id);
+  printf("X: %d\n", mercenaire.posX);
+  printf("Y: %d\n", mercenaire.posY);
+  printf("Mort? : %d\n", mercenaire.mort);
+  printf("Porte? : %d\n", mercenaire.porte);
+  printf("Score? : %d\n", mercenaire.score);
+}
+
+
+
+void afficheMap(map mapJeu){
   printf("Je suis dans afficheMap\n");
   int i,j;
 
@@ -62,37 +74,46 @@ int main(void) {
   //for(;;) {
     /* Envoi de données au serveur */
     printf("Donnees a envoyer au serveur : ");
-    fgets(buffer, 64, stdin);
+    fgets(buffer, 32, stdin);
     char *pos = strchr(buffer, '\n');
     *pos = '\0';
-    send(sock, buffer, 64, 0);
+    send(sock, buffer, 32, 0);
   //}//for
 
-  recv(sock, buffer, 32, 0);
-  printf("Recu ID : %s\n", buffer);
+  //recv(sock, buffer, 32, 0);
+  //printf("Recu ID : %s\n", buffer);
 
-  /*
-  int socketMap = sock;
+  char * tokenConnexion = strtok(buffer, "/");
+  printf("%s\n", tokenConnexion);
+  if (strcmp(tokenConnexion, "connexion") == 0) {
+    printf("Demande de connexion Client\n");
 
-  if (recv(socketMap,(void *)&mapJeu, sizeof(mapJeu), 0) < 0) {
-    printf("Probleme reception MAP\n");
-  } else {
-    printf("Reception MAP\n");
+    tokenConnexion = strtok(NULL, "");
+    char * tokenType = strtok(tokenConnexion, "/");
 
-    afficheMap();
-  }
-  close(socketMap);
-*/
+    printf("%s\n", tokenType);
 
-  while(1){
-      printf("Votre requete? : ");
-      fgets(buffer, 32, stdin);
-      char *pos2 = strchr(buffer, '\n');
-      *pos2 = '\0';
-      send(sock, buffer, 32, 0);
-
+    if (strcmp(tokenConnexion, "mercenaire") == 0) {
+      recv(sock,(void*)&mercenaire,sizeof(mercenaire),0);
+      afficheMercenaire(mercenaire);
+    }else if (strcmp(tokenConnexion, "oedipe") == 0){
+      char id[32];
+      recv(sock,id,sizeof(id),0);
+      printf("id : %s\n", id);
 
     }
+  }
+
+  while(1){
+    char bufferR[64];
+      printf("Votre requete? : ");
+      fgets(bufferR, 64, stdin);
+      char *pos2 = strchr(bufferR, '\n');
+      *pos2 = '\0';
+      if(send(sock, bufferR, 64, 0)<0){
+        printf("probleme envoi requete\n");
+      }
+  }
 
   return EXIT_SUCCESS;
 

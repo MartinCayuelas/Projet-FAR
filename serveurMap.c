@@ -13,7 +13,7 @@
 
 #include "server.h"
 
-#define PORT 12045
+#define PORT 12070
 
 int main(void) {
 printf("Initialisation du serveur MAP\n");
