@@ -14,13 +14,6 @@ typedef struct Enigme {
 }Enigme;
 
 
-typedef struct Partie{
-	int equipe1;
-	int equipe2;
-	int score1;
-	int score2;
-}Partie;
-
 
 typedef struct position{
   int x;
@@ -49,6 +42,14 @@ int mort;
 int tientVillageois;
 int id;
 } Mercenaire;
+
+typedef struct Partie{
+	int equipe1;
+	int equipe2;
+	int score1;
+	int score2;
+}Partie;
+
 
 typedef struct Monitoring{
 	Mercenaire mercenaires[6];

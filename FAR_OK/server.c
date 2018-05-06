@@ -17,10 +17,14 @@
 
 
 #include <time.h>  //pour le Random
-#define PORT 10059
+#define PORT 10080
 
-#define PORTMAP 15005
-#define PORTSphynx 13000
+#define PORTMAP 18080
+#define PORTSphynx 13080
+
+
+int serverSocket; //Socket du serveur
+
 
 /* VAriables globales pour les fonctions */
 int nbMercenaire = 0;
@@ -31,15 +35,71 @@ struct Monitoring monitor;
 struct position sphynx;
 struct objectPosition objets;
 
-
-
-
+int nbsockets = 0;
+int tabSockets[9] ={0, 0, 0, 0, 0, 0, 0, 0, 0};
 /***********************************************/
+//Fonction propre au serveur
+
+void shutDownServer(){
+  if(nbsockets == 0){
+      close(serverSocket);
+
+  }
+}
+
+void afficheConnexion(){
+  for(int i = 0; i < 9 ; i++){
+    if(tabSockets[i] != 0){
+      printf("[%d] est connecté \n", i+1);
+    }else{
+      printf("[%d] n'est pas connecté \n", i+1);
+    }
+
+  }
+}
+
+void decrementeNbSocks(){
+  nbsockets -= 1;
+}
+void incrementeNbSockets(){
+  nbsockets += 1;
+}
+
+
+void addConnexion(int sock, int id){
+  tabSockets[id-1] = sock;
+}
+
+void deleteConnexion(int sock){
+  int i = 0;
+  while(tabSockets[i] != sock){
+    i++;
+  }
+  int tmp = tabSockets[i];
+  tabSockets[i] = 0;
+  decrementeNbSocks();
+}
+
+
+int begin(){
+  if (nbsockets == 2){ // A changer à 9 après
+    return 1;
+  }else{
+    return 0;
+  }
+}
+/**************************************************/
+
+
+/**************************************************/
+
 int rand_a_b(int a, int b) { //Fonction de Random
   b += 1;
   return rand() % (b - a) + a;
 
 }
+
+
 
 void placementVillageois(){
   int i;
@@ -50,7 +110,7 @@ void placementVillageois(){
       int positionY = rand_a_b(0, mapJeu.tailleCarte);
       if (mapJeu.matrice[positionX][positionY] == 10) {
         mapJeu.matrice[positionX][positionY] = 9;
-      mapJeu.positions.villageois[i].x = positionX;
+        mapJeu.positions.villageois[i].x = positionX;
         mapJeu.positions.villageois[i].y = positionY;
         pose = 1;
       }
@@ -86,27 +146,27 @@ void setTenirVillageois(Mercenaire mercenaire, int t){
 void setEquipe(int i, int mort){
   if(i <= 3){
     if( mort == 0){
-      partie.equipe1 += 1;
+      monitor.partie.equipe1 += 1;
     }else{
-      partie.equipe1 -= 1;
+      monitor.partie.equipe1 -= 1;
     }
 
   }else{
     if( mort == 0){
-      partie.equipe2 += 1;
+      monitor.partie.equipe2 += 1;
     }else{
-      partie.equipe2 -= 1;
+      monitor.partie.equipe2 -= 1;
     }
   }
 }
-void setScore(Mercenaire m, int i){
+void setScore(Mercenaire m, int i, int score){
   if(i <= 3){
 
-    partie.score1 += 1;
+    monitor.partie.score1 += score;
   }else{
-    partie.score2 += 1;
+    monitor.partie.score2 += score;
   }
-  m.score += 1;
+  m.score += score;
 }
 
 void attaquer(int x, int y){
@@ -120,12 +180,18 @@ void attaquer(int x, int y){
   mapJeu.positions.oedipe.y = y;
   placementMOT();
 
-
 }
 
 void attraper(Mercenaire mercenaire){
   if(mapJeu.matrice[mercenaire.positions.x][mercenaire.positions.x] == 9){
     setTenirVillageois(mercenaire,1);
+
+    //occuper Villageois
+    //TO DO
+
+
+
+
     mapJeu.matrice[mercenaire.positions.x][mercenaire.positions.x] = 10;
   }
 
@@ -136,7 +202,7 @@ void poser(Mercenaire mercenaire){
       setTenirVillageois(mercenaire,1);
       //objets.villageois.x = objets.thebes.x;
     //  objets.villageois.y = objets.thebes.x;
-      setScore(mercenaire,mercenaire.id);
+      setScore(mercenaire,mercenaire.id,1);
   }
 }
 
@@ -158,8 +224,6 @@ int verifMur(int x, int y){
 
   return mur;
 }
-
-
 
 
 void afficheMercenaire(Mercenaire mercenaire){
@@ -250,9 +314,11 @@ void modificationPosition(char * tokenOrientation,char * id) {
 }
 
 /*********SPHYNX***************/
-void demandeReponseEnigme(Enigme e, int sockC, Mercenaire mercenaire){
+void enigmeAskResp(int sockC, Mercenaire mercenaire){
   int sockEnigme;
   struct sockaddr_in esin;
+
+  char enigme[64];
 
   /************PARTIE MAP********************/
   /* Création de la socket */
@@ -266,38 +332,50 @@ void demandeReponseEnigme(Enigme e, int sockC, Mercenaire mercenaire){
   /* Tentative de connexion au serveur */
   connect(sockEnigme, (struct sockaddr * )&esin, sizeof(esin));
   printf("Connexion au Sphynx %s sur le port %d\n", inet_ntoa(esin.sin_addr),htons(esin.sin_port));
-  if (recv(sockEnigme,&e, sizeof(e), 0) < 0) {
+  printf("----------------------------\n" );
+  if (recv(sockEnigme,enigme, sizeof(enigme), 0) < 0) {
     printf("Probleme reception demandeEnigme\n");
   } else {
     printf("reception Enigme\n");
   }
 
-  if(send(sockC, &e, sizeof(e),0)<0){
-    printf("Probleme envoie demandeEnigme\n");
+  if(send(sockC, enigme, sizeof(enigme),0)<0){
+    printf("Probleme envoi demandeEnigme\n");
   } else {
     printf("Envoi OK Enigme\n");
   }
 
-  if (recv(sockC,&e, sizeof(e), 0) < 0) {
+char reponse[64];
+  if (recv(sockC,reponse, sizeof(reponse), 0) < 0) {
     printf("Probleme reception reponseEnigme\n");
   } else {
     printf("reception rep Enigme\n");
   }
 
-  if (recv(sockEnigme,&e, sizeof(e), 0) < 0) {
+  if (send(sockEnigme,reponse, sizeof(reponse), 0) < 0) {
     printf("Probleme envoi reponseEnigme\n");
   } else {
     printf("envoi Sphynx repEnigme\n");
   }
-
-  if (recv(sockEnigme,&e, sizeof(e), 0) < 0) {
+  int result;
+  if (recv(sockEnigme,&result, sizeof(result), 0) < 0) {
     printf("Probleme reception resultatEnigme\n");
   } else {
     printf("reception resultat  Enigme\n");
   }
 
-  if(e.resolue == 1){
-    setScore(mercenaire, mercenaire.id);
+
+  if (send(sockC,&result, sizeof(result), 0) < 0) {
+    printf("Probleme envoi result\n");
+  } else {
+    printf("Envoi resultat Mercenaire\n");
+  }
+
+  if(result == 1){
+    setScore(mercenaire, mercenaire.id,5);
+    printf("Réponse correcte\n");
+  }else{
+    printf("Réponse incorrecte\n");
   }
 
 
@@ -314,8 +392,10 @@ void * clientFils(void * monThreadClient) {
 
   int csock = * (int *) monThreadClient;
 
+  incrementeNbSockets();
+
+
   struct Mercenaire mercenaire;
-  struct Enigme enigme;
 
   //----------Partie Debut----------------//
   char bufferC[32] = "Bonjour!";
@@ -340,8 +420,8 @@ void * clientFils(void * monThreadClient) {
     if (strcmp(tokenConnexion, "mercenaire") == 0) {
       nbMercenaire = nbMercenaire + 1; // On incrémente le nombre de Mercenaire
       setEquipe(nbMercenaire,0); // Augmentation du nombre de joueur dans l'équipe concernée
-      printf("NB joueurs Equipe1 %d\n", partie.equipe1);
-      printf("NB joueurs Equipe2 %d\n", partie.equipe2);
+      printf("NB joueurs Equipe1 %d\n", monitor.partie.equipe1);
+      printf("NB joueurs Equipe2 %d\n", monitor.partie.equipe2);
 
       int idTypeInt =  nbMercenaire;
 
@@ -357,10 +437,11 @@ void * clientFils(void * monThreadClient) {
 
       monitor.mercenaires[mercenaire.id-1] = mercenaire;
 
-      afficheMercenaire(mercenaire);
+      //afficheMercenaire(mercenaire);
+      addConnexion(csock,mercenaire.id);
       //send(csock, idType, sizeof(idType), 0);
       if(send(csock,&mercenaire,sizeof(mercenaire),0)<0){
-        printf("Probleme mercenaire ENvoi\n");
+        afficheConnexion();printf("Probleme mercenaire ENvoi\n");
       }
       /*if(send(csock,(void*)&mapJeu,sizeof(mapJeu),0)<0){
         printf("Probleme Map Envoi\n");
@@ -369,17 +450,20 @@ void * clientFils(void * monThreadClient) {
     } else if (strcmp(tokenConnexion, "oedipe") == 0) {
       //TO DO
       char * idType = "7";
-
+      addConnexion(csock,atoi(idType));
       printf("Id: %s\n", idType);
       send(csock, idType, sizeof(idType), 0);
       /* code */
     } else if (strcmp(tokenConnexion, "sphynx") == 0) {
       //TO DO
       char * idType = "8";
+
       printf("Id: %s\n", idType);
       send(csock, idType, sizeof(idType), 0);
       /* code */
     } else if(strcmp(tokenConnexion,"monitoring") == 0){
+      addConnexion(csock,8);
+      afficheConnexion();
       while (1) {
 
         if(send(csock,(void*)&monitor, sizeof(monitor),0)<0){
@@ -388,9 +472,11 @@ void * clientFils(void * monThreadClient) {
 
       }
       printf("Monitoring terminé\n");
-      close(csock);
+
 
     } else if(strcmp(tokenConnexion,"sdl") == 0){
+      addConnexion(csock,9);
+      afficheConnexion();
       while (1) {
 
         if(send(csock,(void*)&monitor, sizeof(monitor),0)<0){
@@ -399,18 +485,25 @@ void * clientFils(void * monThreadClient) {
 
       }
       printf("SDL terminé\n");
-      close(csock);
+
 
     }
     else {
-    char badRequest[64] = "Mauvaise forme de requete de connexion!\n";
-    printf("%s\n", badRequest);
-    send(csock, badRequest, 64, 0);
+      char badRequest[64] = "Mauvaise forme de requete de connexion!\n";
+      printf("%s\n", badRequest);
+      send(csock, badRequest, 64, 0);
     }
 
     if(send(csock,&mapJeu.positions,sizeof(mapJeu.positions),0)<0){
       printf("Probleme mapJeu.positions ENvoi\n");
     }
+    afficheConnexion();
+    printf("Il faut attendre que tout le monde soit connecté\n");
+    while(begin() == 0){}
+    printf("Le jeu peut commencer!\n");
+
+
+
 
 
   } // Fin Connexion
@@ -481,23 +574,35 @@ void * clientFils(void * monThreadClient) {
       //  verifPositionVillageois(mercenaire);
 
 
+
       } else if (strcmp(tokenAction, "poser") == 0 && mercenaire.id != 7) {
         if(mercenaire.positions.x == objets.thebes.x && mercenaire.positions.y == objets.thebes.y){
           setTenirVillageois(mercenaire,0);
-          setScore(mercenaire,mercenaire.id);
+          setScore(mercenaire,mercenaire.id,1);
         }
       }  else if (strcmp(tokenAction, "demande") == 0 && mercenaire.id != 7) {
-        demandeReponseEnigme(enigme, csock, mercenaire);
+        enigmeAskResp(csock, mercenaire);
       }  else if (strcmp(tokenAction, "attaquer") == 0 && (strcmp(id, "7") == 0)) {
         //TO DO
       }
     }
 
+    if(mercenaire.mort == 1){
+      deleteConnexion(csock);
+      close(csock);
+      afficheConnexion();
+    }
+
   }
   printf("Coucou Je suis plus dans le while\n");
+  deleteConnexion(csock);
+  afficheConnexion();
 
   pthread_exit(0);
   close(csock);
+  shutDownServer();
+
+
 
 }
 
@@ -508,7 +613,7 @@ int main(void) {
 
   /* Socket et contexte d'adressage du serveur */
   struct sockaddr_in sin;
-  int serverSocket;
+
   socklen_t recsize = sizeof(sin);
 
   /* Socket et contexte d'adressage du client */
@@ -538,11 +643,36 @@ int main(void) {
   mapsin.sin_addr.s_addr = inet_addr("127.0.0.1");
   mapsin.sin_family = AF_INET;
   mapsin.sin_port = htons(PORTMAP);
+  int ok = 0; // Pour le controle d ela map
+  char bufferMap[32];
+  while(ok == 0){
 
+      printf("Quel Type de Map? random ou defaut: ");
+      fgets(bufferMap, 32, stdin);
+      char *pos2 = strchr(bufferMap, '\n');
+      *pos2 = '\0';
+
+      if(strcmp(bufferMap,"random") == 0){
+        ok = 1;
+
+      }
+      else if(strcmp(bufferMap,"defaut") == 0){
+        ok = 1;
+
+      }
+  }
   /* Tentative de connexion au serveur */
   connect(sockMap, (struct sockaddr * )&mapsin, sizeof(mapsin));
   printf("Connexion a la MAP %s sur le port %d\n", inet_ntoa(mapsin.sin_addr),
     htons(mapsin.sin_port));
+
+    if(send(sockMap, bufferMap, sizeof(bufferMap),0)<0){
+      printf("Problème envoi choix Map\n" );
+    }else{
+      printf("Envoi choix Map\n" );
+    }
+
+
 
   int i, j;
   if (recv(sockMap, & mapJeu, sizeof(mapJeu), 0) < 0) {
@@ -585,12 +715,10 @@ int main(void) {
   while (1) {
     /* Attente d'une connexion client */
 
-    clientSocket = accept(serverSocket, (struct sockaddr * ) & csin, & crecsize);
+  clientSocket = accept(serverSocket, (struct sockaddr * ) & csin, & crecsize);
     printf("Un client est connecté avec la socket %d de %s:%d\n", clientSocket, inet_ntoa(csin.sin_addr), htons(csin.sin_port));
     pthread_create( & thread, NULL, clientFils, (void * ) & clientSocket);
     pthread_detach(thread);
-
-
 
   }
 

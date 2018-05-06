@@ -13,7 +13,7 @@
 
 #include "server.h"
 
-#define PORT 15005
+#define PORT 18080
 
 int main(void) {
 printf("Initialisation du serveur MAP\n");
@@ -44,6 +44,13 @@ printf("Initialisation du serveur MAP\n");
 
   clientSocket = accept(serverSocket,(struct sockaddr*)&csin, &crecsize);
   printf("Le serveur de JEU est connecté avec la socket %d de %s:%d\n", clientSocket, inet_ntoa(csin.sin_addr), htons(csin.sin_port));
+
+  char bufferMap[32];
+  if(recv(clientSocket, bufferMap, sizeof(bufferMap),0)<0){
+    printf("Problème reception choix Map\n" );
+  }else{
+    printf("Choix: %s\n", bufferMap);
+  }
 
   struct objectPosition objet;
   struct map laMap;

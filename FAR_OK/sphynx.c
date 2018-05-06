@@ -10,7 +10,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include "server.h"
-#define PORT 13000
+#define PORT 13080
 
 int sock;
 struct Enigme e;
@@ -22,16 +22,13 @@ void close_exit (int n) {
   exit(0);
 }
 
-void afficheEnigme(){
-  printf("Enonce : %s\n", e.enonce );
-  printf("Reponse: %s\n", e.reponse);
-}
+
 
 int main(void) {
   printf("Sphynx en attente\n");
-  e.enonce ="Qui suis je?";
-  e.reponse = "Moi";
-    afficheEnigme();
+  char enonce[64] ="Qui suis je?";
+  char reponse[64]  = "Moi";
+
 
   /* Rattraper le Ctrl-C */
   signal(SIGINT, close_exit);
@@ -57,19 +54,39 @@ int main(void) {
 
   /* Démarrage du listage */
   listen(sock, 1);
-
+while(1){
   clientSocket = accept(sock,(struct sockaddr*)&csin, &crecsize);
   printf("Le serveur de JEU est connecté pour une enigme avec la socket %d de %s:%d\n", clientSocket, inet_ntoa(csin.sin_addr), htons(csin.sin_port));
 
-  /* Réception de données du serveur */
 
-  afficheEnigme();
-    if(send(clientSocket,&e,sizeof(e),0)<0){
+    if(send(clientSocket,enonce,sizeof(enonce),0)<0){
       printf("Problem send E\n");
+    }else{
+      printf("OK envoi\n" );
+    }
+
+    char repo[64];
+
+    if(recv(clientSocket,repo,sizeof(repo),0)<0){
+      printf("Problem recv E\n");
+    }else{
+      printf("Reponse: %s\n", repo);
+    }
+    int result;
+    if(strcmp(repo,reponse)==0){
+      result = 1;
+      printf("Réponse correcte\n" );
+    }else{
+      result = 0;
+      printf("Réponse incorrecte\n" );
+    }
+
+    if(send(clientSocket,&result,sizeof(result),0)<0){
+      printf("Problem result\n");
     }
 
 
-
+}
 
   return EXIT_SUCCESS;
 

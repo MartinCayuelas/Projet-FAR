@@ -10,7 +10,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include "server.h"
-#define PORT 10059
+#define PORT 10080
 
 int sock;
 struct Monitoring monitor;
@@ -23,9 +23,19 @@ void close_exit (int n) {
 }
 
 void afficheMonitoring(){
+  printf("______________________\n");
   printf("Position oedipe : X %d  Y %d\n", monitor.oedipe.x, monitor.oedipe.y);
   printf("Position Sphynx : X %d  Y %d\n", monitor.sphynx.x, monitor.sphynx.y);
   printf("Position Mercenaire %d : X %d Y %d\n", monitor.mercenaires[0].id, monitor.mercenaires[0].positions.x, monitor.mercenaires[0].positions.y);
+  printf("Position Mercenaire %d : X %d Y %d\n", monitor.mercenaires[1].id, monitor.mercenaires[1].positions.x, monitor.mercenaires[1].positions.y);
+
+
+  printf("Nb joueurs Equipe 1 : %d\n", monitor.partie.equipe1);
+  printf("Nb joueurs Equipe 2 : %d\n", monitor.partie.equipe2);
+  printf("Score Equipe 1 : %d\n", monitor.partie.score1);
+  printf("Score Equipe 2 : %d\n", monitor.partie.score2);
+
+
 }
 
 int main(void) {
@@ -52,29 +62,19 @@ int main(void) {
   recv(sock, buffer, 32, 0);
   printf("Recu : %s\n", buffer);
 
-  //for(;;) {
-    /* Envoi de données au serveur */
     printf("Donnees a envoyer au serveur : ");
     fgets(buffer, 32, stdin);
     char *pos = strchr(buffer, '\n');
     *pos = '\0';
     send(sock, buffer, 32, 0);
-  //}//for
-
-  //recv(sock, buffer, 32, 0);
-  //printf("Recu ID : %s\n", buffer);
-
-
-
-
 
 
   while(1){
-    if(recv(sock,(void*)&monitor,sizeof(monitor),0)<0){
+    if(recv(sock,&monitor,sizeof(monitor),0)<0){
       printf("Problem reception Monitoring\n");
     }
     afficheMonitoring();
-    sleep(0.01);
+    sleep(0.05);
 
   }
 

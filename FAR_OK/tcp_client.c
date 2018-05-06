@@ -10,13 +10,12 @@
 #include <stdlib.h>
 #include <string.h>
 #include "server.h"
-#define PORT 10059
+#define PORT 10080
 
 int sock;
 struct map mapJeu;
 struct objectPosition positionObj;
 struct Mercenaire mercenaire;
-struct Enigme enigme;
 
 void afficheMercenaire(Mercenaire mercenaire){
   printf("Id: %d\n", mercenaire.id);
@@ -138,22 +137,41 @@ int main(void) {
         printf("probleme envoi requete\n");
       }
 
-      printf("Je suis là 1\n");
+
       char * tokenA = strtok(bufferR, "/");
       //printf("%s\n", tokenA);
       tokenA = strtok(NULL, "/");
       //printf("%s\n", tokenA);
         if (strcmp(tokenA, "demande") == 0) {
-          if(recv(sock, &enigme, sizeof(enigme),0)<0){
+          char enigme[64];
+          if(recv(sock, enigme, sizeof(enigme),0)<0){
             printf("Problème reception enigme\n");
           }else{
-            printf("Enonce: %s\n", enigme.enonce);
+            printf("Enonce: %s\n", enigme);
           }
+
+          printf("Réponse? \n");
+          char bufferRep[64];
+            printf("Votre requete? : ");
+            fgets(bufferRep, 64, stdin);
+            char *pos45 = strchr(bufferRep, '\n');
+            *pos45 = '\0';
+            if(send(sock, bufferRep, sizeof(bufferRep),0)<0){
+              printf("Problème envoi reponse\n");
+            }
+
+            int resultat;
+            if(recv(sock, &resultat, sizeof(resultat),0)<0){
+              printf("Problème reception result\n");
+            }else{
+              printf("Résultat: %d\n", resultat);
+            }
+
         }else if (strcmp(tokenA, "deplacer") == 0){
           if(recv(sock,&positionObj,sizeof(positionObj),0)<0){
             printf("Problème reception positions\n");
           }else{
-            printf("Je suis là 2\n");
+
             affichePositions(positionObj);
           }
         }
